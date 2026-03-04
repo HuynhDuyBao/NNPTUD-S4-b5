@@ -1,32 +1,47 @@
 var express = require('express');
 var router = express.Router();
-let { dataCategories, dataProducts } = require('../utils/data')
+//let { dataCategories, dataProducts } = require('../utils/data')
 let slugify = require('slugify');
-let { GenID, getItemByID } = require('../utils/idHandler')
+let { GenID } = require('../utils/idHandler')
+let categoryContext = require('../schemas/categories')
+
 //R CUD
 /* GET users listing. */
-router.get('/', function (req, res, next) {
-  let result = dataCategories.filter(
-    function (e) {
-      return !e.isDeleted;
-    }
-  )
-  res.send(result);
+router.get('/', async function (req, res, next) {
+  let data = await categoryContext.find({
+    isDeleted: false
+  })
+  // let result = data.filter(
+  //   function (e) {
+  //     return !e.isDeleted;
+  //   }
+  // )
+  res.send(data);
 });
-router.get('/:id', function (req, res, next) {
-  let id = req.params.id;
-  let result = dataCategories.filter(
-    function (e) {
-      return e.id == id && !e.isDeleted
+router.get('/:id', async function (req, res, next) {
+  try {
+    let id = req.params.id;
+    let result = await categoryContext.find({
+      isDeleted: false,
+      _id: id
+    })
+    if (result.length > 0) {
+      res.send(result[0])
+    }else{
+      res.status(404).send("ID NOT FOUND")
     }
-  )
-  if (result.length == 0) {
-    res.status(404).send({
-      message: "ID NOT FOUND"
-    });
-  } else {
-    res.send(result[0])
+
+  } catch (error) {
+    res.status(404).send(error.message)
   }
+
+  // if (result.length == 0) {
+  //   res.status(404).send({
+  //     message: "ID NOT FOUND"
+  //   });
+  // } else {
+  //   res.send(result[0])
+  // }
 });
 router.get('/:id/products', function (req, res, next) {
   let id = req.params.id;
@@ -48,9 +63,8 @@ router.get('/:id/products', function (req, res, next) {
     res.send(result)
   }
 });
-router.post('/', function (req, res, next) {
-  let newCate = {
-    id: GenID(dataCategories),
+router.post('/', async function (req, res, next) {
+  let newCate = new categoryContext({
     name: req.body.name,
     slug: slugify(req.body.name,
       {
@@ -60,25 +74,15 @@ router.post('/', function (req, res, next) {
         trim: true
       }
     ),
-    image: req.body.image,
-    creationAt: new Date(Date.now()),
-    updatedAt: new Date(Date.now())
-  }
+    image: req.body.image
+  })
+  await newCate.save();
   res.send(newCate)
 })
-router.put('/:id', function (req, res, next) {
-  let id = req.params.id;
-  let result = dataCategories.filter(
-    function (e) {
-      return e.id == id && !e.isDeleted
-    }
-  )
-  if (result.length == 0) {
-    res.status(404).send({
-      message: "ID NOT FOUND"
-    });
-  } else {
-    result = result[0];
+router.put('/:id', async function (req, res, next) {
+  try {
+    let id = req.params.id;
+    let result = await categoryContext.findById(id)
     let keys = Object.keys(req.body);
     for (const key of keys) {
       if (result[key]) {
@@ -86,25 +90,21 @@ router.put('/:id', function (req, res, next) {
         result.updatedAt = new Date(Date.now())
       }
     }
+    await result.save()
     res.send(result)
+  } catch (error) {
+    res.status(404).send(error.message)
   }
 })
-router.delete('/:id', function (req, res, next) {
-  let id = req.params.id;
-  let result = dataCategories.filter(
-    function (e) {
-      return e.id == id && !e.isDeleted
-    }
-  )
-  if (result.length == 0) {
-    res.status(404).send({
-      message: "ID NOT FOUND"
-    });
-  } else {
-    result = result[0];
+router.delete('/:id', async function (req, res, next) {
+  try {
+    let id = req.params.id;
+    let result = await categoryContext.findById(id)
     result.isDeleted = true;
-    result.updatedAt = new Date(Date.now())
+    await result.save()
     res.send(result)
+  } catch (error) {
+    res.status(404).send(error.message)
   }
 })
 
